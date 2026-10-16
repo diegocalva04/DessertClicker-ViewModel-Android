@@ -1,33 +1,36 @@
-# Dessert Clicker: ciclo de vida de una actividad
+# Dessert Clicker con ViewModel
 
-Aplicación Android desarrollada en Kotlin y Jetpack Compose siguiendo el codelab oficial de Google **[Etapas del ciclo de vida de la actividad](https://developer.android.com/codelabs/basic-android-kotlin-compose-activity-lifecycle?hl=es-419)**.
+Segunda práctica de Android desarrollada en Kotlin y Jetpack Compose. El proyecto continúa la primera práctica de ciclo de vida e implementa la arquitectura propuesta en el codelab oficial **[Cómo agregar un ViewModel a Dessert Clicker](https://developer.android.com/codelabs/basic-android-kotlin-compose-practice-viewmodel?hl=es-419)**.
 
-El proyecto parte de la rama `starter` del repositorio oficial [Dessert Clicker](https://github.com/google-developer-training/basic-android-kotlin-compose-training-dessert-clicker) y reproduce su solución final sin rediseños ni funcionalidades adicionales. Al tocar el postre, la aplicación incrementa las unidades vendidas y los ingresos, cambia la imagen según el progreso y permite compartir el resultado.
+La aplicación incrementa la cantidad de postres vendidos y los ingresos, cambia el postre según el progreso, permite compartir el resultado y conserva el estado al rotar o enviar la actividad a segundo plano.
 
-## Objetivos del ejercicio
+## Arquitectura implementada
 
-- Observar las transiciones del ciclo de vida de `MainActivity` en Logcat.
-- Implementar `onCreate()`, `onStart()`, `onResume()`, `onRestart()`, `onPause()`, `onStop()` y `onDestroy()`.
-- Comprender la destrucción y recreación de una actividad ante un cambio de configuración.
-- Conservar los cinco valores de estado de la interfaz mediante `rememberSaveable`.
+- `DessertUiState`: clase de datos inmutable con el índice, ventas, ingresos, precio e imagen actuales.
+- `DessertViewModel`: única fuente de verdad; expone un `StateFlow<DessertUiState>` de solo lectura y procesa cada clic.
+- `MainActivity` y Compose: observan el flujo con `collectAsState()`, muestran el estado y remiten los eventos al ViewModel.
+- Registros del ciclo de vida: se conservan `onCreate()`, `onStart()`, `onResume()`, `onRestart()`, `onPause()`, `onStop()` y `onDestroy()` con la etiqueta `MainActivity`.
 
-## Tecnologías y requisitos
+```text
+Toque del usuario → onDessertClicked() → MutableStateFlow
+                                      ↓
+Interfaz Compose ← collectAsState() ← DessertUiState
+```
 
-- Kotlin y Jetpack Compose con Material 3.
-- Android Gradle Plugin 8.8.0 y Gradle 8.12 (incluido mediante Gradle Wrapper).
-- JDK 17.
-- Android Studio con Android SDK 35 instalado.
-- Dispositivo o emulador con Android 7.0 (API 24) o superior.
+## Archivos principales
 
-## Abrir y ejecutar
+- `app/src/main/java/com/example/dessertclicker/data/DessertUiState.kt`
+- `app/src/main/java/com/example/dessertclicker/ui/DessertViewModel.kt`
+- `app/src/main/java/com/example/dessertclicker/ui/MainActivity.kt`
+- `app/build.gradle.kts`
 
-1. Clona el repositorio o descarga su contenido.
-2. Abre la carpeta raíz en Android Studio.
-3. Espera a que finalice la sincronización de Gradle.
-4. Selecciona un dispositivo físico o virtual con API 24 o superior.
-5. Ejecuta la configuración `app`.
+## Ejecución
 
-También se puede comprobar la compilación desde una terminal en la raíz del proyecto:
+1. Abre la carpeta raíz en Android Studio.
+2. Selecciona un dispositivo Android con API 24 o superior.
+3. Ejecuta la configuración `app`.
+
+La comprobación completa también puede ejecutarse desde la raíz:
 
 ```powershell
 .\gradlew.bat clean testDebugUnitTest lintDebug assembleDebug
@@ -35,69 +38,59 @@ También se puede comprobar la compilación desde una terminal en la raíz del p
 
 El APK de depuración se genera en `app/build/outputs/apk/debug/app-debug.apk`.
 
-## Ciclo de vida y Logcat
+## Pruebas realizadas en teléfono físico
 
-`MainActivity` registra cada devolución de llamada con la etiqueta `MainActivity`:
+Las pruebas se ejecutaron el 15 de octubre de 2026 en un Xiaomi 23100RN82L con Android 15 (API 35), conectado por ADB:
 
-| Método | Momento observado por Android |
-|---|---|
-| `onCreate()` | Crea e inicializa una nueva instancia de la actividad. |
-| `onStart()` | Hace visible la actividad. |
-| `onResume()` | Entrega el foco y permite interactuar con ella. |
-| `onPause()` | Retira el foco, aunque la actividad aún puede estar visible. |
-| `onStop()` | La actividad deja de ser visible. |
-| `onRestart()` | Una actividad detenida vuelve a iniciarse. |
-| `onDestroy()` | La instancia se destruye al finalizar o recrearse. |
+- Estado inicial: 0 postres y $0.
+- Incremento de ventas e ingresos mediante toques reales.
+- Cambio de cupcake a donut al superar el umbral configurado.
+- Conservación de 10 postres y $75 después de rotar la pantalla.
+- Conservación del estado al ir a Inicio y volver a la aplicación.
+- Apertura correcta del selector de compartir con el texto esperado.
+- Secuencia de recreación observada en Logcat: `onPause`, `onStop`, `onDestroy`, `onCreate`, `onStart`, `onResume`.
+- Compilación, Lint y ensamblado final correctos; Lint informó 0 errores.
 
-Para ver únicamente estos mensajes, abre Logcat y usa el filtro:
+El detalle reproducible está en [docs/INFORME_PRUEBAS.md](docs/INFORME_PRUEBAS.md).
 
-```text
-tag:MainActivity
-```
+## Evidencias
 
-## Cambios de configuración y estado
+### Estado inicial y ventas
 
-Una rotación destruye y vuelve a crear la actividad. Con `remember`, los valores sobreviven a recomposiciones, pero no a esa recreación. El codelab corrige la pérdida de datos sustituyendo `remember` por `rememberSaveable` en exactamente cinco variables:
+<p align="center">
+  <img src="docs/evidencias/01_aplicacion_inicial.png" width="260" alt="Estado inicial de Dessert Clicker">
+  <img src="docs/evidencias/02_venta_postres.png" width="260" alt="Venta de postres">
+  <img src="docs/evidencias/03_progresion_postres.png" width="260" alt="Progresión al donut">
+</p>
 
-- `revenue`
-- `dessertsSold`
-- `currentDessertIndex`
-- `currentDessertPrice`
-- `currentDessertImageId`
+### Estado conservado al rotar
 
-Así, Compose puede restaurar los ingresos, la cantidad vendida, el precio y la imagen correspondiente después del cambio de configuración.
+![Estado conservado en horizontal](docs/evidencias/03_estado_conservado_horizontal.png)
 
-## Etapas e historial
+### Implementación en Android Studio
 
-El historial Git se creó desde cero, sin importar el historial del repositorio de Google, y conserva la evolución real del ejercicio:
+![DessertUiState](docs/evidencias/04_estado_ui_android_studio.jpg)
 
-1. Preparación de una copia independiente de la rama `starter`.
-2. Registro de `onCreate()`.
-3. Registro de `onStart()`.
-4. Registro de las cinco devoluciones de llamada restantes.
-5. Migración de las cinco variables a `rememberSaveable`.
-6. Comparación del código y la configuración con la rama `main` oficial.
-7. Documentación de la implementación y de las validaciones disponibles.
+![DessertViewModel](docs/evidencias/05_viewmodel_android_studio.jpg)
 
-Consulta los identificadores y mensajes exactos con:
+![Integración en MainActivity](docs/evidencias/06_integracion_mainactivity_android_studio.jpg)
+
+## Historial incremental
+
+El repositorio conserva la primera práctica y añade commits independientes para diagnóstico, dependencia de ViewModel, estado de interfaz, creación del ViewModel, traslado de la lógica, integración con Compose, pruebas y documentación. Puede consultarse con:
 
 ```bash
 git log --oneline --reverse
 ```
 
-## Validación realizada
+## Comparación con la solución oficial
 
-El 15 de octubre de 2026 se verificó localmente lo siguiente:
+Se comparó la implementación con la rama `viewmodel` del repositorio oficial de Google. `DessertUiState` coincide con la solución de referencia y el ViewModel mantiene la misma lógica. Se conservaron la configuración moderna de Gradle, Material 3, las mejoras de la primera práctica y los registros del ciclo de vida en lugar de sustituir todo el proyecto por la rama antigua.
 
-- La rama `starter` compiló antes de aplicar los cambios.
-- La compilación final, el análisis Lint y la tarea de pruebas unitarias terminaron correctamente.
-- Se generó un APK de depuración de 9.544.820 bytes.
-- Lint informó `0 errors` y `26 warnings`; las advertencias proceden de recursos y versiones conservados de la solución oficial.
-- `app/src` y `app/build.gradle.kts` no presentan diferencias frente a la rama `main` oficial.
-- No existen pruebas unitarias en el proyecto oficial, por lo que Gradle informó `testDebugUnitTest NO-SOURCE`.
+## Procedencia y licencia
 
-No se ejecutaron las pruebas interactivas de Atrás, Inicio/Recientes, selector de compartir ni rotación. No había dispositivo conectado ni AVD configurado; la imagen de sistema necesaria tampoco estaba instalada. Por tanto, este repositorio no presenta secuencias de Logcat ni resultados visuales como si se hubieran observado. Los pasos pendientes están detallados en [docs/INFORME_VALIDACION.md](docs/INFORME_VALIDACION.md).
+- [Codelab de ViewModel](https://developer.android.com/codelabs/basic-android-kotlin-compose-practice-viewmodel?hl=es-419)
+- [Codelab de ciclo de vida](https://developer.android.com/codelabs/basic-android-kotlin-compose-activity-lifecycle?hl=es-419)
+- [Repositorio oficial Dessert Clicker](https://github.com/google-developer-training/basic-android-kotlin-compose-training-dessert-clicker)
 
-## Licencia y procedencia
-
-El código y los recursos originales conservan sus avisos de copyright y la licencia Apache 2.0 incluida en [LICENSE](LICENSE). La estructura, recursos y solución se mantienen fieles al material educativo oficial de Google.
+El código y los recursos originales conservan sus avisos y la licencia Apache 2.0 incluida en [LICENSE](LICENSE).
